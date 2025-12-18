@@ -6,7 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Calculator, Calendar } from "lucide-react"
+import { Calculator, Calendar, AlertCircle, TrendingUp, Wallet } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { motion, AnimatePresence } from "framer-motion"
+import EmailReportForm from "@/components/email-report-form"
 
 interface TaxResult {
   grossIncome: number
@@ -22,12 +25,32 @@ interface TaxResult {
   effectiveRate: number
 }
 
+interface ExtendedTaxResult extends TaxResult {
+  mortgage: number
+  pension: number
+  rent: number
+  insurance: number
+  period: "annual" | "monthly"
+}
+
 export default function TaxCalculator({
   onResultChange,
 }: { onResultChange?: (result: TaxResult | null, period: "annual" | "monthly") => void }) {
   const [period, setPeriod] = useState<"annual" | "monthly">("annual")
   const [inputValue, setInputValue] = useState<string>("")
   const [result, setResult] = useState<TaxResult | null>(null)
+
+  const [mortgage, setMortgage] = useState<string>("")
+  const [pension, setPension] = useState<string>("")
+  const [rent, setRent] = useState<string>("")
+  const [insurance, setInsurance] = useState<string>("")
+
+  const [isManualMortgage, setIsManualMortgage] = useState(false)
+  const [isManualPension, setIsManualPension] = useState(false)
+  const [isManualRent, setIsManualRent] = useState(false)
+  const [isManualInsurance, setIsManualInsurance] = useState(false)
+
+  const [emailReportData, setEmailReportData] = useState<ExtendedTaxResult | null>(null)
 
   const getAnnualGross = () => {
     const value = Number.parseFloat(inputValue.replace(/,/g, "")) || 0
@@ -36,10 +59,37 @@ export default function TaxCalculator({
 
   const annualGross = getAnnualGross()
 
-  const pensionPayment = annualGross * 0.08
-  const annualRent = Math.min(annualGross * 0.2, 500000)
-  const insurance = 300000
-  const mortgageDeduction = annualGross * 0.1
+  const defaultPension = annualGross * 0.08
+  const defaultRent = Math.min(annualGross * 0.2, 500000)
+  const defaultInsurance = 300000
+  const defaultMortgage = annualGross * 0.1
+
+  useEffect(() => {
+    if (annualGross > 0) {
+      if (!isManualMortgage) {
+        setMortgage(Math.round(defaultMortgage).toLocaleString("en-US"))
+      }
+      if (!isManualPension) {
+        setPension(Math.round(defaultPension).toLocaleString("en-US"))
+      }
+      if (!isManualRent) {
+        setRent(Math.round(defaultRent).toLocaleString("en-US"))
+      }
+      if (!isManualInsurance) {
+        setInsurance(defaultInsurance.toLocaleString("en-US"))
+      }
+    } else {
+      if (!isManualMortgage) setMortgage("")
+      if (!isManualPension) setPension("")
+      if (!isManualRent) setRent("")
+      if (!isManualInsurance) setInsurance("")
+    }
+  }, [annualGross, isManualMortgage, isManualPension, isManualRent, isManualInsurance])
+
+  const pensionPayment = pension ? Number.parseFloat(pension.replace(/,/g, "")) : 0
+  const annualRent = rent ? Number.parseFloat(rent.replace(/,/g, "")) : 0
+  const insuranceAmount = insurance ? Number.parseFloat(insurance.replace(/,/g, "")) : 0
+  const mortgageDeduction = mortgage ? Number.parseFloat(mortgage.replace(/,/g, "")) : 0
 
   const handlePeriodChange = (newPeriod: "annual" | "monthly") => {
     if (period !== newPeriod && inputValue) {
@@ -63,12 +113,13 @@ export default function TaxCalculator({
       calculateTax()
     } else {
       setResult(null)
+      setEmailReportData(null) // Clear email data when no input
       if (onResultChange) onResultChange(null, period)
     }
-  }, [annualGross, period])
+  }, [annualGross, mortgageDeduction, pensionPayment, annualRent, insuranceAmount, period])
 
   const calculateTax = () => {
-    const totalDeductions = mortgageDeduction + pensionPayment + annualRent + insurance
+    const totalDeductions = mortgageDeduction + pensionPayment + annualRent + insuranceAmount
     const taxableIncome = Math.max(0, annualGross - totalDeductions)
 
     const brackets = [
@@ -116,6 +167,16 @@ export default function TaxCalculator({
     }
 
     setResult(newResult)
+
+    setEmailReportData({
+      ...newResult,
+      mortgage: mortgageDeduction,
+      pension: pensionPayment,
+      rent: annualRent,
+      insurance: insuranceAmount,
+      period: period,
+    })
+
     if (onResultChange) onResultChange(newResult, period)
   }
 
@@ -124,6 +185,26 @@ export default function TaxCalculator({
     if (value === "" || /^\d+$/.test(value)) {
       const formatted = value === "" ? "" : Number.parseInt(value).toLocaleString("en-US")
       setInputValue(formatted)
+    }
+  }
+
+  const handleDeductionChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: React.Dispatch<React.SetStateAction<string>>,
+    manualSetter: React.Dispatch<React.SetStateAction<boolean>>,
+    field?: string,
+  ) => {
+    const value = e.target.value.replace(/,/g, "")
+    if (value === "" || /^\d+$/.test(value)) {
+      let numericValue = value === "" ? 0 : Number.parseInt(value)
+
+      if (field === "rent" && numericValue > 500000) {
+        numericValue = 500000
+      }
+
+      const formatted = numericValue === 0 ? "" : numericValue.toLocaleString("en-US")
+      setter(formatted)
+      manualSetter(true)
     }
   }
 
@@ -136,196 +217,323 @@ export default function TaxCalculator({
     }).format(displayAmount)
   }
 
+  const getZeroTaxReason = () => {
+    if (!result || result.totalTax > 0) return null
+
+    if (result.taxableIncome <= 800000) {
+      return "Your taxable income is within the first ₦800,000 bracket which is tax-free under Nigerian tax law."
+    }
+    return "Your deductions have reduced your taxable income to the tax-free threshold."
+  }
+
+  const zeroTaxReason = getZeroTaxReason()
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
-      {/* Input Section */}
-      <Card className="shadow-sm">
-        <CardHeader className="space-y-1">
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <Calculator className="h-5 w-5 text-primary" />
-            Income & Deductions
-          </CardTitle>
-          <CardDescription className="text-sm">Enter your gross income (before tax)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">View Mode</Label>
-            <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
-              <button
-                onClick={() => handlePeriodChange("annual")}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-semibold transition-colors ${
-                  period === "annual"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Calendar className="h-4 w-4" />
-                Annual
-              </button>
-              <button
-                onClick={() => handlePeriodChange("monthly")}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-semibold transition-colors ${
-                  period === "monthly"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Calendar className="h-4 w-4" />
-                Monthly
-              </button>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <AnimatePresence>
+        {zeroTaxReason && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -20, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Alert variant="destructive" className="border-red-500 bg-red-50">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm font-medium text-red-900">{zeroTaxReason}</AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          <Separator />
-
-          <div className="space-y-2">
-            <Label htmlFor="gross-income" className="text-base font-semibold">
-              {period === "annual" ? "Annual Gross Income" : "Monthly Gross Income"}
-            </Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">
-                ₦
-              </span>
-              <Input
-                id="gross-income"
-                type="text"
-                inputMode="numeric"
-                placeholder="0"
-                value={inputValue}
-                onChange={handleInputChange}
-                className="pl-8 text-lg font-semibold"
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Automatic Deductions</h3>
-
-            <div className="grid gap-3">
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Mortgage (FHS)</p>
-                  <p className="text-xs text-muted-foreground">10% of gross income</p>
+      <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
+        {/* Input Section */}
+        <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+          <Card className="border-border/50 shadow-lg backdrop-blur-sm">
+            <CardHeader className="space-y-2 pb-6">
+              <CardTitle className="flex items-center gap-2.5 text-2xl">
+                <div className="rounded-lg bg-primary/10 p-2">
+                  <Calculator className="h-5 w-5 text-primary" />
                 </div>
-                <p className="text-sm font-semibold">{formatCurrency(mortgageDeduction)}</p>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Pension (Pencom)</p>
-                  <p className="text-xs text-muted-foreground">8% of gross income</p>
-                </div>
-                <p className="text-sm font-semibold">{formatCurrency(pensionPayment)}</p>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Annual Rent</p>
-                  <p className="text-xs text-muted-foreground">20% (max ₦500,000)</p>
-                </div>
-                <p className="text-sm font-semibold">{formatCurrency(annualRent)}</p>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Life Insurance</p>
-                  <p className="text-xs text-muted-foreground">Maximum allowed</p>
-                </div>
-                <p className="text-sm font-semibold">{formatCurrency(insurance)}</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Results Section */}
-      <div className="space-y-4">
-        <Card className="shadow-sm">
-          <CardHeader className="space-y-3">
-            <CardTitle className="text-xl">Tax Summary</CardTitle>
-            <CardDescription className="text-sm">
-              Your calculated tax breakdown ({period === "monthly" ? "monthly view" : "annual view"})
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {result ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between rounded-lg bg-muted p-3">
-                  <span className="text-sm font-medium text-muted-foreground">Gross Income</span>
-                  <span className="text-sm font-semibold text-foreground">{formatCurrency(result.grossIncome)}</span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg bg-muted p-3">
-                  <span className="text-sm font-medium text-muted-foreground">Total Deductions</span>
-                  <span className="text-sm font-semibold text-accent">{formatCurrency(result.totalDeductions)}</span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg bg-secondary p-3">
-                  <span className="text-sm font-medium text-secondary-foreground">Taxable Income</span>
-                  <span className="text-sm font-bold text-secondary-foreground">
-                    {formatCurrency(result.taxableIncome)}
-                  </span>
-                </div>
-
-                <Separator />
-
-                <div className="flex items-center justify-between rounded-lg bg-primary p-4">
-                  <span className="font-semibold text-primary-foreground">Total Tax</span>
-                  <span className="text-lg font-bold text-primary-foreground md:text-xl">
-                    {formatCurrency(result.totalTax)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between rounded-lg bg-accent p-4">
-                  <span className="font-semibold text-accent-foreground">Net Income</span>
-                  <span className="text-lg font-bold text-accent-foreground md:text-xl">
-                    {formatCurrency(result.netIncome)}
-                  </span>
-                </div>
-
-                <div className="rounded-lg border border-border bg-card p-3">
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Effective Tax Rate</p>
-                    <p className="text-2xl font-bold text-foreground">{result.effectiveRate.toFixed(2)}%</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="py-8 text-center md:py-12">
-                <Calculator className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <p className="mt-4 text-sm text-muted-foreground">Enter your income to see calculations</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {result && result.taxBreakdown.length > 0 && (
-          <Card className="shadow-sm">
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-xl">Tax Bracket Breakdown</CardTitle>
-              <CardDescription className="text-sm">How your tax is calculated across brackets</CardDescription>
+                Income & Deductions
+              </CardTitle>
+              <CardDescription className="text-base">Enter your gross income (before tax)</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {result.taxBreakdown.map((item, index) => (
-                  <div key={index} className="space-y-1 rounded-lg border border-border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-muted-foreground">{item.bracket}</span>
-                      {item.tax > 0 && (
-                        <span className="text-xs font-semibold text-primary">{formatCurrency(item.tax)}</span>
-                      )}
-                    </div>
-                    <div className="text-sm text-foreground">
-                      {formatCurrency(item.amount)} {item.tax > 0 ? `taxed` : "tax-free"}
-                    </div>
-                  </div>
-                ))}
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">View Mode</Label>
+                <div className="flex items-center gap-2 rounded-xl bg-muted/50 p-1.5">
+                  <button
+                    onClick={() => handlePeriodChange("annual")}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-all ${
+                      period === "annual"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Annual
+                  </button>
+                  <button
+                    onClick={() => handlePeriodChange("monthly")}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition-all ${
+                      period === "monthly"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Monthly
+                  </button>
+                </div>
+              </div>
+
+              <Separator className="my-6" />
+
+              <div className="space-y-3">
+                <Label htmlFor="gross-income" className="text-lg font-bold">
+                  {period === "annual" ? "Annual Gross Income" : "Monthly Gross Income"}
+                </Label>
+                <motion.div className="relative" whileFocus={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-muted-foreground">
+                    ₦
+                  </span>
+                  <Input
+                    id="gross-income"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    className="h-14 border-2 pl-10 text-xl font-bold focus:border-primary"
+                  />
+                </motion.div>
+              </div>
+
+              <Separator className="my-6" />
+
+              <div className="space-y-5">
+                <h3 className="text-base font-bold uppercase tracking-wide text-foreground">Deductions (Editable)</h3>
+
+                <div className="grid gap-4">
+                  {[
+                    {
+                      id: "mortgage",
+                      label: "Mortgage",
+                      hint: "10% default",
+                      value: mortgage,
+                      setter: setMortgage,
+                      manualSetter: setIsManualMortgage,
+                    },
+                    {
+                      id: "pension",
+                      label: "Pension (Pencom)",
+                      hint: "8% default",
+                      value: pension,
+                      setter: setPension,
+                      manualSetter: setIsManualPension,
+                    },
+                    {
+                      id: "rent",
+                      label: "Annual Rent",
+                      hint: "20% max ₦500k",
+                      value: rent,
+                      setter: setRent,
+                      manualSetter: setIsManualRent,
+                      field: "rent",
+                    },
+                    {
+                      id: "insurance",
+                      label: "Life Insurance",
+                      hint: "₦300k default",
+                      value: insurance,
+                      setter: setInsurance,
+                      manualSetter: setIsManualInsurance,
+                    },
+                  ].map((deduction, index) => (
+                    <motion.div
+                      key={deduction.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.08, duration: 0.3 }}
+                      className="space-y-2 rounded-lg bg-muted/30 p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor={deduction.id} className="text-sm font-semibold">
+                          {deduction.label}
+                        </Label>
+                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                          {deduction.hint}
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground">
+                          ₦
+                        </span>
+                        <Input
+                          id={deduction.id}
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={deduction.value}
+                          onChange={(e) =>
+                            handleDeductionChange(e, deduction.setter, deduction.manualSetter, deduction.field)
+                          }
+                          className="h-11 pl-8 font-semibold"
+                        />
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
-        )}
+        </motion.div>
+
+        {/* Results Section */}
+        <div className="space-y-6">
+          <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
+            <Card className="border-border/50 shadow-lg backdrop-blur-sm">
+              <CardHeader className="space-y-2 pb-6">
+                <CardTitle className="flex items-center gap-2.5 text-2xl">
+                  <div className="rounded-lg bg-primary/10 p-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                  </div>
+                  Tax Summary
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Your calculated tax breakdown ({period === "monthly" ? "monthly view" : "annual view"})
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AnimatePresence mode="wait">
+                  {result ? (
+                    <motion.div
+                      key="results"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-4"
+                    >
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="flex items-center justify-between rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 p-4"
+                      >
+                        <span className="text-sm font-semibold text-muted-foreground">Gross Income</span>
+                        <span className="text-base font-bold text-foreground">
+                          {formatCurrency(result.grossIncome)}
+                        </span>
+                      </motion.div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 }}
+                        className="flex items-center justify-between rounded-xl bg-gradient-to-br from-accent/20 to-accent/10 p-4"
+                      >
+                        <span className="text-sm font-semibold text-accent-foreground">Total Deductions</span>
+                        <span className="text-base font-bold text-accent-foreground">
+                          {formatCurrency(result.totalDeductions)}
+                        </span>
+                      </motion.div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="flex items-center justify-between rounded-xl bg-gradient-to-br from-secondary to-secondary/70 p-4"
+                      >
+                        <span className="text-sm font-semibold text-secondary-foreground">Taxable Income</span>
+                        <span className="text-base font-bold text-secondary-foreground">
+                          {formatCurrency(result.taxableIncome)}
+                        </span>
+                      </motion.div>
+
+                      <Separator className="my-4" />
+
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+                        whileHover={{ scale: 1.02 }}
+                        className="flex items-center justify-between rounded-xl bg-gradient-to-br from-primary to-primary/80 p-5 shadow-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-lg bg-primary-foreground/10 p-2">
+                            <Calculator className="h-5 w-5 text-primary-foreground" />
+                          </div>
+                          <span className="text-lg font-bold text-primary-foreground">Total Tax</span>
+                        </div>
+                        <span className="text-2xl font-bold text-primary-foreground">
+                          {formatCurrency(result.totalTax)}
+                        </span>
+                      </motion.div>
+
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.35, type: "spring", stiffness: 200 }}
+                        whileHover={{ scale: 1.02 }}
+                        className="flex items-center justify-between rounded-xl bg-gradient-to-br from-accent to-accent/80 p-5 shadow-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-lg bg-accent-foreground/10 p-2">
+                            <Wallet className="h-5 w-5 text-accent-foreground" />
+                          </div>
+                          <span className="text-lg font-bold text-accent-foreground">Net Income</span>
+                        </div>
+                        <span className="text-2xl font-bold text-accent-foreground">
+                          {formatCurrency(result.netIncome)}
+                        </span>
+                      </motion.div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="rounded-xl border-2 border-border bg-card p-5"
+                      >
+                        <div className="text-center">
+                          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                            Effective Tax Rate
+                          </p>
+                          <p className="mt-2 text-4xl font-bold text-foreground">{result.effectiveRate.toFixed(2)}%</p>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="py-12 text-center md:py-16"
+                    >
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                        <Calculator className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-base font-medium text-muted-foreground">Enter your income to calculate tax</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {emailReportData && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              <EmailReportForm taxData={emailReportData} />
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   )
