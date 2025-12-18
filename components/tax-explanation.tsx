@@ -188,8 +188,8 @@ export default function TaxExplanation({
                 },
                 {
                   icon: Home,
-                  title: "Mortgage Relief (FHS)",
-                  desc: "If you're paying a mortgage through the Federal Housing Scheme, 10% of your gross income can be deducted from your taxable income to help reduce your tax burden.",
+                  title: "Mortgage (Loan Relief)",
+                  desc: "Interest on loans for owner-occupied residential housing can be deducted from your taxable income. You can deduct up to 10% of your gross income for mortgage interest payments on your primary residence.",
                 },
                 {
                   icon: Home,
@@ -199,7 +199,7 @@ export default function TaxExplanation({
                 {
                   icon: Shield,
                   title: "Life Insurance",
-                  desc: "Premium payments for life insurance policies are deductible up to a maximum of ₦300,000 per year, encouraging you to protect your family's future.",
+                  desc: "Premium payments for life insurance policies are fully deductible from your taxable income, encouraging you to protect your family's future.",
                 },
               ].map((deduction, index) => (
                 <motion.div

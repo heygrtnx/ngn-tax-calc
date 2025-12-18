@@ -104,16 +104,46 @@ export async function sendTaxReport(data: TaxReportData) {
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Your Tax Report</title>
+          <style>
+            @media only screen and (max-width: 600px) {
+              .email-container {
+                width: 100% !important;
+                padding: 10px !important;
+              }
+              .email-content {
+                width: 100% !important;
+                padding: 20px 15px !important;
+              }
+              .email-header {
+                padding: 25px 20px !important;
+              }
+              .email-logo {
+                max-width: 150px !important;
+              }
+              .email-table {
+                font-size: 12px !important;
+              }
+              .email-footer {
+                padding: 15px 20px !important;
+              }
+              .email-footer-text {
+                font-size: 11px !important;
+              }
+              .email-contact-box {
+                padding: 12px !important;
+              }
+            }
+          </style>
         </head>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;" class="email-container">
             <tr>
               <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100%;" class="email-content">
                   <!-- Header -->
                   <tr>
-                    <td style="background: linear-gradient(135deg, #BAF0FF 0%, #FFD2A8 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-                      <img src="${logoUrl}" alt="Oduko Logo" style="max-width: 200px; height: auto; margin-bottom: 15px;" />
+                    <td style="background: linear-gradient(135deg, #BAF0FF 0%, #FFD2A8 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;" class="email-header">
+                      <img src="${logoUrl}" alt="Oduko Logo" style="max-width: 200px; height: auto; margin-bottom: 15px; width: 100%;" class="email-logo" />
                       <h1 style="margin: 0; color: #000211; font-size: 28px; font-weight: bold;">Your Tax Report</h1>
                       <p style="margin: 10px 0 0 0; color: #000211; font-size: 14px;">Nigeria Personal Income Tax Calculator</p>
                     </td>
@@ -252,11 +282,17 @@ export async function sendTaxReport(data: TaxReportData) {
                   
                   <!-- Footer -->
                   <tr>
-                    <td style="padding: 20px 30px 30px 30px; border-top: 1px solid #e5e5e5;">
-                      <p style="margin: 0; color: #999; font-size: 12px; line-height: 1.6;">
+                    <td style="padding: 20px 30px 30px 30px; border-top: 1px solid #e5e5e5;" class="email-footer">
+                      <p style="margin: 0; color: #999; font-size: 12px; line-height: 1.6;" class="email-footer-text">
                         This is an automated tax calculation based on Nigerian tax laws. Please consult with a tax professional for personalized advice.
                       </p>
-                      <p style="margin: 15px 0 0 0; color: #999; font-size: 12px;">
+                      <div style="margin: 20px 0 0 0; padding: 15px; background-color: #f9f9f9; border-radius: 6px;" class="email-contact-box">
+                        <p style="margin: 0 0 10px 0; color: #000211; font-size: 13px; font-weight: bold;">Contact Oduko</p>
+                        <p style="margin: 0; color: #666; font-size: 12px; word-break: break-word;">
+                          <a href="mailto:odukoregistrydev@gmail.com" style="color: #BAF0FF; text-decoration: none; word-break: break-all;">odukoregistrydev@gmail.com</a>
+                        </p>
+                      </div>
+                      <p style="margin: 15px 0 0 0; color: #999; font-size: 12px;" class="email-footer-text">
                         © ${new Date().getFullYear()} Oduko Tax Calculator. All rights reserved.
                       </p>
                     </td>
@@ -291,15 +327,36 @@ export async function sendTaxReport(data: TaxReportData) {
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>New Tax Report Submission</title>
+          <style>
+            @media only screen and (max-width: 600px) {
+              .email-container {
+                width: 100% !important;
+                padding: 10px !important;
+              }
+              .email-content {
+                width: 100% !important;
+                padding: 20px 15px !important;
+              }
+              .email-header {
+                padding: 25px 20px !important;
+              }
+              .email-logo {
+                max-width: 150px !important;
+              }
+              .email-table {
+                font-size: 12px !important;
+              }
+            }
+          </style>
         </head>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;" class="email-container">
             <tr>
               <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100%;" class="email-content">
                   <tr>
-                    <td style="background-color: #000211; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-                      <img src="${logoUrl}" alt="Oduko Logo" style="max-width: 180px; height: auto; margin-bottom: 15px; filter: brightness(0) invert(1);" />
+                    <td style="background-color: #000211; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;" class="email-header">
+                      <img src="${logoUrl}" alt="Oduko Logo" style="max-width: 180px; height: auto; margin-bottom: 15px; filter: brightness(0) invert(1); width: 100%;" class="email-logo" />
                       <h1 style="margin: 0; color: #BAF0FF; font-size: 24px; font-weight: bold;">New User Submission</h1>
                       <p style="margin: 10px 0 0 0; color: #FFD2A8; font-size: 14px;">Tax Calculator Report</p>
                     </td>

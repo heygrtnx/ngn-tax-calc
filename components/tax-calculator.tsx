@@ -345,7 +345,7 @@ export default function TaxCalculator({
                     {
                       id: "insurance",
                       label: "Life Insurance",
-                      hint: "₦300k default",
+                      hint: "Default amount",
                       value: insurance,
                       setter: setInsurance,
                       manualSetter: setIsManualInsurance,

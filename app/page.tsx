@@ -5,6 +5,7 @@ import TaxCalculator from "@/components/tax-calculator"
 import TaxExplanation from "@/components/tax-explanation"
 import HowCalculatorWorks from "@/components/how-calculator-works"
 import TaxBrackets from "@/components/tax-brackets"
+import Footer from "@/components/footer"
 import Image from "next/image"
 import { motion } from "framer-motion"
 
@@ -107,6 +108,7 @@ export default function Home() {
           </motion.div>
         )}
       </div>
+      <Footer />
     </main>
   )
 }
