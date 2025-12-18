@@ -28,10 +28,13 @@ export async function getUserCount(): Promise<number> {
 		await ensureDataDir()
 		const fileContent = await fs.readFile(COUNT_FILE, "utf-8")
 		const data: UserCountData = JSON.parse(fileContent)
-		return data.count || 0
+		const count = typeof data.count === "number" && !isNaN(data.count) ? data.count : 0
+		console.log("[user-count] Read count from file:", count)
+		return count
 	} catch (error) {
 		// File doesn't exist or is invalid, return 0
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			console.log("[user-count] File doesn't exist, starting from 0")
 			return 0
 		}
 		console.error("[user-count] Error reading user count:", error)
@@ -46,23 +49,32 @@ export async function saveUserCount(count: number): Promise<void> {
 	try {
 		await ensureDataDir()
 		const data: UserCountData = {
-			count,
+			count: typeof count === "number" && !isNaN(count) ? count : 0,
 			lastUpdated: new Date().toISOString(),
 		}
 		await fs.writeFile(COUNT_FILE, JSON.stringify(data, null, 2), "utf-8")
+		console.log("[user-count] Saved count to file:", data.count)
 	} catch (error) {
 		console.error("[user-count] Error saving user count:", error)
-		// Don't throw - we don't want to break the email sending if file write fails
+		throw error // Throw to ensure we know if saving fails
 	}
 }
 
 /**
- * Increments the user count and saves it
+ * Increments the user count and saves it atomically
  */
 export async function incrementUserCount(): Promise<number> {
-	const currentCount = await getUserCount()
-	const newCount = currentCount + 1
-	await saveUserCount(newCount)
-	return newCount
+	try {
+		const currentCount = await getUserCount()
+		const newCount = currentCount + 1
+		await saveUserCount(newCount)
+		console.log("[user-count] Incremented from", currentCount, "to", newCount)
+		return newCount
+	} catch (error) {
+		console.error("[user-count] Error incrementing user count:", error)
+		// Return a fallback count if file operations fail
+		const fallbackCount = await getUserCount()
+		return fallbackCount + 1
+	}
 }
 

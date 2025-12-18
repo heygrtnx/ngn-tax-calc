@@ -63,6 +63,18 @@ export async function sendTaxReport(data: TaxReportData) {
 			}).format(safeAmount);
 		};
 
+		const formatDate = (date: Date) => {
+			return date.toLocaleString("en-NG", {
+				timeZone: "Africa/Lagos",
+				year: "numeric",
+				month: "2-digit",
+				day: "2-digit",
+				hour: "2-digit",
+				minute: "2-digit",
+				second: "2-digit",
+			});
+		};
+
 		// Ensure all values are valid numbers
 		const safeGrossIncome = typeof data.grossIncome === "number" && !isNaN(data.grossIncome) ? data.grossIncome : 0;
 		const safeTotalDeductions = typeof data.totalDeductions === "number" && !isNaN(data.totalDeductions) ? data.totalDeductions : 0;
@@ -105,6 +117,16 @@ export async function sendTaxReport(data: TaxReportData) {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Your Tax Report</title>
           <style>
+            .email-content {
+              background-image: url('${logoUrl}') !important;
+              background-repeat: no-repeat !important;
+              background-position: center !important;
+              background-size: 400px auto !important;
+            }
+            /* Overlay to make watermark more subtle */
+            .email-content td {
+              background-color: rgba(255, 255, 255, 0.95) !important;
+            }
             @media only screen and (max-width: 600px) {
               .email-container {
                 width: 100% !important;
@@ -113,6 +135,7 @@ export async function sendTaxReport(data: TaxReportData) {
               .email-content {
                 width: 100% !important;
                 padding: 20px 15px !important;
+                background-size: 250px auto !important;
               }
               .email-header {
                 padding: 25px 20px !important;
@@ -139,7 +162,7 @@ export async function sendTaxReport(data: TaxReportData) {
           <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;" class="email-container">
             <tr>
               <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100%;" class="email-content">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100%; background-image: url('${logoUrl}'); background-repeat: no-repeat; background-position: center; background-size: 400px auto;" class="email-content">
                   <!-- Header -->
                   <tr>
                     <td style="background: linear-gradient(135deg, #BAF0FF 0%, #FFD2A8 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;" class="email-header">
@@ -319,7 +342,18 @@ export async function sendTaxReport(data: TaxReportData) {
 		console.log("[v0] User email sent successfully");
 
 		// Increment user count after successful user email (saved to file for persistence)
-		const currentUserNumber = await incrementUserCount();
+		let currentUserNumber: number;
+		try {
+			currentUserNumber = await incrementUserCount();
+			console.log("[v0] User count incremented to:", currentUserNumber);
+		} catch (error) {
+			console.error("[v0] Error incrementing user count:", error);
+			// Fallback: try to get current count and add 1
+			const { getUserCount } = await import("@/lib/user-count-storage");
+			const fallbackCount = await getUserCount();
+			currentUserNumber = fallbackCount + 1;
+			console.log("[v0] Using fallback user count:", currentUserNumber);
+		}
 
 		// Email to admin
 		const adminEmailHtml = `
@@ -330,6 +364,16 @@ export async function sendTaxReport(data: TaxReportData) {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>New Tax Report Submission</title>
           <style>
+            .email-content {
+              background-image: url('${logoUrl}') !important;
+              background-repeat: no-repeat !important;
+              background-position: center !important;
+              background-size: 400px auto !important;
+            }
+            /* Overlay to make watermark more subtle */
+            .email-content td {
+              background-color: rgba(255, 255, 255, 0.95) !important;
+            }
             @media only screen and (max-width: 600px) {
               .email-container {
                 width: 100% !important;
@@ -338,6 +382,7 @@ export async function sendTaxReport(data: TaxReportData) {
               .email-content {
                 width: 100% !important;
                 padding: 20px 15px !important;
+                background-size: 250px auto !important;
               }
               .email-header {
                 padding: 25px 20px !important;
@@ -355,7 +400,7 @@ export async function sendTaxReport(data: TaxReportData) {
           <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;" class="email-container">
             <tr>
               <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100%;" class="email-content">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 100%; background-image: url('${logoUrl}'); background-repeat: no-repeat; background-position: center; background-size: 400px auto;" class="email-content">
                   <tr>
                     <td style="background-color: #000211; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;" class="email-header">
                       <img src="${logoUrl}" alt="Oduko Logo" style="max-width: 180px; height: auto; margin-bottom: 15px; filter: brightness(0) invert(1); width: 100%;" class="email-logo" />
@@ -378,7 +423,7 @@ export async function sendTaxReport(data: TaxReportData) {
                         </tr>
                         <tr>
                           <td style="padding: 12px 15px; color: #666; font-size: 14px;">Submission Time</td>
-                          <td style="padding: 12px 15px; color: #333; font-weight: bold; font-size: 14px;">${new Date().toLocaleString("en-NG")}</td>
+                          <td style="padding: 12px 15px; color: #333; font-weight: bold; font-size: 14px;">${formatDate(new Date())}</td>
                         </tr>
                       </table>
                       
