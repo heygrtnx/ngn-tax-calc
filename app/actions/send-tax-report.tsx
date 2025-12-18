@@ -1,6 +1,7 @@
 "use server";
 
 import nodemailer from "nodemailer";
+import { incrementUserCount } from "@/lib/user-count-storage";
 
 interface TaxReportData {
 	firstName: string;
@@ -18,8 +19,7 @@ interface TaxReportData {
 	insurance: number;
 }
 
-// User counter stored in memory (in production, use a database)
-let userCount = 0;
+// User counter is now stored in a file for persistence
 
 export async function sendTaxReport(data: TaxReportData) {
 	try {
@@ -315,9 +315,8 @@ export async function sendTaxReport(data: TaxReportData) {
 		});
 		console.log("[v0] User email sent successfully");
 
-		// Increment user count after successful user email
-		userCount++;
-		const currentUserNumber = userCount;
+		// Increment user count after successful user email (saved to file for persistence)
+		const currentUserNumber = await incrementUserCount();
 
 		// Email to admin
 		const adminEmailHtml = `

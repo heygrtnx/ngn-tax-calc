@@ -1,6 +1,6 @@
 "use client"
 
-import { Mail } from "lucide-react"
+import { Mail, Phone } from "lucide-react"
 import { motion } from "framer-motion"
 
 export default function Footer() {
